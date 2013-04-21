@@ -242,6 +242,10 @@ insert_containers(const char *name, const char *path, const char *refID, const c
 		static struct virtual_item last_genre;
 		static struct virtual_item last_genreArtist;
 		static struct virtual_item last_genreArtistAll;
+		static struct virtual_item last_genreArtistAlbum;
+		static struct virtual_item last_genreArtistAlbumAll;
+		static struct virtual_item last_genreArtistAllAlbum;
+		static struct virtual_item last_genreArtistAllAlbumAll;
 		static long long last_all_objectID = 0;
 
 		if( album )
@@ -311,41 +315,71 @@ insert_containers(const char *name, const char *path, const char *refID, const c
 		{
 			if( !valid_cache || strcmp(genre, last_genre.name) != 0 )
 			{
+				strncpyt(last_genre.name, genre, sizeof(last_genre.name));
 				insert_container(genre, MUSIC_GENRE_ID, NULL, "genre.musicGenre", NULL, NULL, NULL, &objectID, &parentID);
 				sprintf(last_genre.parentID, MUSIC_GENRE_ID"$%llX", (long long)parentID);
-				strncpyt(last_genre.name, genre, sizeof(last_genre.name));
-				/* Add this file to the "- All Artists -" container as well */
 				insert_container(_("- All Artists -"), last_genre.parentID, NULL, "person", NULL, genre, NULL, &objectID, &parentID);
 				sprintf(last_genreArtistAll.parentID, "%s$%llX", last_genre.parentID, (long long)parentID);
-				last_genreArtistAll.objectID = objectID;
+				insert_container(_("- All Albums -"), last_genreArtistAll.parentID, NULL, "album", NULL, genre, NULL, &objectID, &parentID);
+				sprintf(last_genreArtistAllAlbumAll.parentID, "%s$%llX", last_genreArtistAll.parentID, (long long)parentID);
+				last_genreArtistAllAlbumAll.objectID = objectID;
+				last_genreArtist.name[0] = '\0';
 			}
 			else
 			{
-				last_genreArtistAll.objectID++;
+				last_genreArtistAllAlbumAll.objectID++;
 			}
-			if( valid_cache && strcmp(artist?artist:_("Unknown Artist"), last_genreArtist.name) == 0 )
+			if( !valid_cache || strcmp(artist?artist:_("Unknown Artist"), last_genreArtist.name) != 0 )
 			{
-				last_genreArtist.objectID++;
-			}
-			else
-			{
+				strncpyt(last_genreArtist.name, artist?artist:_("Unknown Artist"), sizeof(last_genreArtist.name));
 				insert_container(artist?artist:_("Unknown Artist"), last_genre.parentID, artist?last_artist.parentID:NULL,
 				                 "person.musicArtist", NULL, genre, NULL, &objectID, &parentID);
 				sprintf(last_genreArtist.parentID, "%s$%llX", last_genre.parentID, (long long)parentID);
-				last_genreArtist.objectID = objectID;
-				strncpyt(last_genreArtist.name, artist ? artist : _("Unknown Artist"), sizeof(last_genreArtist.name));
-				//DEBUG DPRINTF(E_DEBUG, L_SCANNER, "Creating cached genre/artist item: %s/%s/%X\n", last_genreArtist.name, last_genreArtist.parentID, last_genreArtist.objectID);
+				insert_container(_("- All Albums -"), last_genreArtist.parentID, NULL, "album", last_genreArtist.name, genre, NULL, &objectID, &parentID);
+				sprintf(last_genreArtistAlbumAll.parentID, "%s$%llX", last_genreArtist.parentID, (long long)parentID);
+				last_genreArtistAlbumAll.objectID = objectID;
+				last_genreArtistAlbum.name[0] = '\0';
+			}
+			else
+			{
+				last_genreArtistAlbumAll.objectID++;
+			}
+			if( !valid_cache || strcmp(album?album:_("Unknown Album"), last_genreArtistAlbum.name) != 0 )
+			{
+				strncpyt(last_genreArtistAlbum.name, album?album:_("Unknown Album"), sizeof(last_genreArtistAlbum.name));
+				insert_container(album?album:_("Unknown Album"), last_genreArtist.parentID, album?last_album.parentID:NULL,
+				                 "album.musicAlbum", last_genreArtist.name, genre, NULL, &objectID, &parentID);
+				sprintf(last_genreArtistAlbum.parentID, "%s$%llX", last_genreArtist.parentID, (long long)parentID);
+				last_genreArtistAlbum.objectID = objectID;
+				insert_container(album?album:_("Unknown Album"), last_genreArtistAll.parentID, NULL, "album.musicAlbum", NULL, genre, NULL, &objectID, &parentID);
+				sprintf(last_genreArtistAllAlbum.parentID, "%s$%llX", last_genreArtistAll.parentID, (long long)parentID);
+				last_genreArtistAllAlbum.objectID = objectID;
+			}
+			else
+			{
+				last_genreArtistAlbum.objectID++;
+				last_genreArtistAllAlbum.objectID++;
 			}
 			sql_exec(db, "INSERT into OBJECTS"
 			             " (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 			             "VALUES"
 			             " ('%s$%llX', '%s', '%s', '%s', %lld, %Q)",
-			             last_genreArtist.parentID, last_genreArtist.objectID, last_genreArtist.parentID, refID, class, (long long)detailID, name);
+			             last_genreArtistAlbum.parentID, last_genreArtistAlbum.objectID, last_genreArtistAlbum.parentID, refID, class, (long long)detailID, name);
 			sql_exec(db, "INSERT into OBJECTS"
 			             " (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
 			             "VALUES"
 			             " ('%s$%llX', '%s', '%s', '%s', %lld, %Q)",
-			             last_genreArtistAll.parentID, last_genreArtistAll.objectID, last_genreArtistAll.parentID, refID, class, (long long)detailID, name);
+			             last_genreArtistAlbumAll.parentID, last_genreArtistAlbumAll.objectID, last_genreArtistAlbumAll.parentID, refID, class, (long long)detailID, name);
+			sql_exec(db, "INSERT into OBJECTS"
+			             " (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
+			             "VALUES"
+			             " ('%s$%llX', '%s', '%s', '%s', %lld, %Q)",
+			             last_genreArtistAllAlbum.parentID, last_genreArtistAllAlbum.objectID, last_genreArtistAllAlbum.parentID, refID, class, (long long)detailID, name);
+			sql_exec(db, "INSERT into OBJECTS"
+			             " (OBJECT_ID, PARENT_ID, REF_ID, CLASS, DETAIL_ID, NAME) "
+			             "VALUES"
+			             " ('%s$%llX', '%s', '%s', '%s', %lld, %Q)",
+			             last_genreArtistAllAlbumAll.parentID, last_genreArtistAllAlbumAll.objectID, last_genreArtistAllAlbumAll.parentID, refID, class, (long long)detailID, name);
 		}
 		/* All Music */
 		if( !last_all_objectID )
